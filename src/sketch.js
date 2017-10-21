@@ -121,12 +121,14 @@ function Game() {
         }
 
         // Check ball collision with targets
-        this.targets.map(target => {
+        this.targets = this.targets.filter(target => {
             let t = target;
             if (collideRectCircle(t.x, t.y, t.width, t.height, c.x, c.y, 2 * c.radius)) {
                 this.ball.onCollideY();
                 this.ball.move();
+                return false
             }
+            return true;
 
         });
 
