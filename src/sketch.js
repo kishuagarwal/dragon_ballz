@@ -1,12 +1,7 @@
 // collision detection
 // taken from https://github.com/bmoren/p5.collide2D/blob/master/p5.collide2d.js
 
-let RectEdge = {
-    LEFT: 0,
-    RIGHT: 1,
-    BOTTOM: 2,
-    TOP: 3,
-};
+let RectEdge;
 
 let COLLISION_DETECTION_RECT_EDGE = null;
 
@@ -48,14 +43,14 @@ function collideRectCircle(rx, ry, rw, rh, cx, cy, radius) {
 
 function Ball(initialX, initialY) {
     this.radius = 10;
-    this.speedX = 3;
+    this.velocity = createVector(1,1).setMag(3);
     this.speedY = 3;
     this.x = initialX;
     this.y = initialY;
 
     this.move = function() {
-        this.x += this.speedX;
-        this.y += this.speedY;
+        this.x += this.velocity.x;
+        this.y += this.velocity.y;
     };
 
     this.draw = function() {
@@ -65,17 +60,22 @@ function Ball(initialX, initialY) {
     }
 
     this.isCollidingWithRect = function(rect) {
-        return collideRectCircle(rect.x, rect.y, rect.width, rect.height, this.x, this.y, this.radius * 2);
+        return collideRectCircle(rect.x, rect.y, rect.width, rect.height, this.x, this.y, this.radius);
     }
 
     this.onCollideWithRect = function() {
         let collidingEdge = COLLISION_DETECTION_RECT_EDGE;
-        if (collidingEdge == RectEdge.TOP || collidingEdge == RectEdge.BOTTOM) {
-            this.speedY = -this.speedY;
-        }
-        else {
-            this.speedX = -this.speedX;
-        }
+
+        // Normalize the edge vector
+        let edge_vector = collidingEdge;
+        edge_vector.normalize();
+
+        // Find the reflection vector
+        let ref_vector = p5.Vector.sub(this.velocity, p5.Vector.mult(edge_vector, this.velocity.dot(edge_vector) * 2));
+        ref_vector.normalize();
+
+        // Apply the new speeds
+        this.velocity = ref_vector.setMag(3);
     }
 }
 
@@ -151,13 +151,9 @@ function Game() {
 
     this.forward = function() {
         this.ball.move();
-        let p = this.placeholder;
-        let c = this.ball;
-
         // Check ball collision with placeholder
-        if (this.ball.isCollidingWithRect(p)) {
+        if (this.ball.isCollidingWithRect(this.placeholder)) {
             this.ball.onCollideWithRect();
-            this.ball.move();
         }
 
         // Check ball collision with targets
@@ -165,7 +161,6 @@ function Game() {
             let t = target;
             if (this.ball.isCollidingWithRect(t)) {
                 this.ball.onCollideWithRect();
-                this.ball.move();
                 return false
             }
             return true;
@@ -178,14 +173,12 @@ function Game() {
         if (this.ball.x < 0 || this.ball.x > width) {
             COLLISION_DETECTION_RECT_EDGE = RectEdge.LEFT;
             this.ball.onCollideWithRect();
-            this.ball.move();
         }
 
         // Up wall
         if (this.ball.y < 0 ) {
             COLLISION_DETECTION_RECT_EDGE = RectEdge.TOP;
             this.ball.onCollideWithRect();
-            this.ball.move();
         }
 
         this.placeholder.move();
@@ -205,6 +198,13 @@ let game;
 
 function setup() {
     createCanvas(640, 480);
+    RectEdge = {
+        LEFT: createVector(1,0),
+        RIGHT: createVector(1,0),
+        BOTTOM: createVector(0,1),
+        TOP: createVector(0,1),
+    };
+
     game = new Game();
     game.setup();
  }
