@@ -100,14 +100,27 @@ function Game() {
     };
 
     this.addTargets = function() {
-       for (let i = 0; i < 5; i++) {
-            let y = 20 * i + 20;
-            for (let j = 0; j < 5; j++) {
-                let x = j * 50 + 20;
+       let targetHeight = 20;
+       let targetWidth = 50;
+       let numTargetsRows = 5;
+       let numTargetsPerRow = 10;
+       let yOffset = 50;
+       let xOffset = (width - numTargetsPerRow * targetWidth) / 2;
+       for (let i = 0; i < numTargetsRows; i++) {
+            let y = targetHeight * i + yOffset;
+            for (let j = 0; j < numTargetsPerRow; j++) {
+                let x = j * targetWidth + xOffset;
                 this.targets.push(new Target(x, y));
             }
        }
     };
+
+    this.checkGameOver = function() {
+        if (this.targets.length == 0 || this.ball.y > height) {
+            alert('Game Over');
+            location.reload();
+        }
+    }
 
     this.forward = function() {
         this.ball.move();
@@ -131,6 +144,8 @@ function Game() {
             return true;
 
         });
+
+        this.checkGameOver();
 
 
         // Check collision with walls
