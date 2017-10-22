@@ -1,24 +1,45 @@
 // collision detection
 // taken from https://github.com/bmoren/p5.collide2D/blob/master/p5.collide2d.js
 
-function collideRectCircle(rx, ry, rw, rh, cx, cy, diameter) {
+let RectEdge = {
+    LEFT: 0,
+    RIGHT: 1,
+    BOTTOM: 2,
+    TOP: 3,
+};
+
+let COLLISION_DETECTION_RECT_EDGE = null;
+
+function collideRectCircle(rx, ry, rw, rh, cx, cy, radius) {
   //2d
   // temporary variables to set edges for testing
   var testX = cx;
   var testY = cy;
 
   // which edge is closest?
-  if (cx < rx){         testX = rx       // left edge
-  }else if (cx > rx+rw){ testX = rx+rw  }   // right edge
+  if (cx < rx){
+    testX = rx       // left edge
+    COLLISION_DETECTION_RECT_EDGE = RectEdge.LEFT;
+  }
+  else if (cx > rx+rw){
+    testX = rx+rw
+    COLLISION_DETECTION_RECT_EDGE = RectEdge.RIGHT;
+   }   // right edge
 
-  if (cy < ry){         testY = ry       // top edge
-  }else if (cy > ry+rh){ testY = ry+rh }   // bottom edge
+  if (cy < ry){
+    testY = ry       // top edge
+    COLLISION_DETECTION_RECT_EDGE = RectEdge.TOP;
+  }
+  else if (cy > ry+rh){
+    testY = ry+rh
+    COLLISION_DETECTION_RECT_EDGE = RectEdge.BOTTOM;
+  }   // bottom edge
 
   // // get distance from closest edges
   var distance = this.dist(cx,cy,testX,testY)
 
   // if the distance is less than the radius, collision!
-  if (distance <= diameter/2) {
+  if (distance <= radius) {
     return true;
   }
   return false;
@@ -43,12 +64,18 @@ function Ball(initialX, initialY) {
         ellipse(this.x, this.y, this.radius, this.radius);
     }
 
-    this.onCollideY = function() {
-        this.speedY = -this.speedY;
+    this.isCollidingWithRect = function(rect) {
+        return collideRectCircle(rect.x, rect.y, rect.width, rect.height, this.x, this.y, this.radius * 2);
     }
 
-    this.onCollideX = function() {
-        this.speedX = -this.speedX;
+    this.onCollideWithRect = function() {
+        let collidingEdge = COLLISION_DETECTION_RECT_EDGE;
+        if (collidingEdge == RectEdge.TOP || collidingEdge == RectEdge.BOTTOM) {
+            this.speedY = -this.speedY;
+        }
+        else {
+            this.speedX = -this.speedX;
+        }
     }
 }
 
@@ -128,36 +155,36 @@ function Game() {
         let c = this.ball;
 
         // Check ball collision with placeholder
-        if (collideRectCircle(p.x, p.y, p.width, p.height, c.x, c.y, 2 * c.radius)) {
-            this.ball.onCollideY();
+        if (this.ball.isCollidingWithRect(p)) {
+            this.ball.onCollideWithRect();
             this.ball.move();
         }
 
         // Check ball collision with targets
         this.targets = this.targets.filter(target => {
             let t = target;
-            if (collideRectCircle(t.x, t.y, t.width, t.height, c.x, c.y, 2 * c.radius)) {
-                this.ball.onCollideY();
+            if (this.ball.isCollidingWithRect(t)) {
+                this.ball.onCollideWithRect();
                 this.ball.move();
                 return false
             }
             return true;
-
         });
 
         this.checkGameOver();
 
-
         // Check collision with walls
         // Left and Right wall
         if (this.ball.x < 0 || this.ball.x > width) {
-            this.ball.onCollideX();
+            COLLISION_DETECTION_RECT_EDGE = RectEdge.LEFT;
+            this.ball.onCollideWithRect();
             this.ball.move();
         }
 
         // Up wall
         if (this.ball.y < 0 ) {
-            this.ball.onCollideY();
+            COLLISION_DETECTION_RECT_EDGE = RectEdge.TOP;
+            this.ball.onCollideWithRect();
             this.ball.move();
         }
 
