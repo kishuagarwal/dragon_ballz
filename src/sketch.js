@@ -5,6 +5,8 @@ let RectEdge;
 
 let COLLISION_DETECTION_RECT_EDGE = null;
 
+let TARGET_HIT_COUNT = 0;
+
 function collideRectCircle(rx, ry, rw, rh, cx, cy, radius) {
   //2d
   // temporary variables to set edges for testing
@@ -43,8 +45,8 @@ function collideRectCircle(rx, ry, rw, rh, cx, cy, radius) {
 
 function Ball(initialX, initialY) {
     this.radius = 10;
-    this.velocity = createVector(1,1).setMag(3);
-    this.speedY = 3;
+    this.speed = 4;
+    this.velocity = createVector(1,1).setMag(this.speed);
     this.x = initialX;
     this.y = initialY;
 
@@ -75,7 +77,7 @@ function Ball(initialX, initialY) {
         ref_vector.normalize();
 
         // Apply the new speeds
-        this.velocity = ref_vector.setMag(3);
+        this.velocity = ref_vector.setMag(this.speed);
     }
 }
 
@@ -83,8 +85,21 @@ function Placeholder(initialX, initialY) {
     this.x = initialX;
     this.y = initialY;
     this.width = 70;
+    this.defaultWidth = 70;
     this.height = 17;
-    this.speed = 3;
+    this.speed = 5;
+
+    this.halfWidth = function() {
+        this.width = this.defaultWidth / 2;
+    }
+
+    this.restoreWidth = function() {
+        this.width = this.defaultWidth;
+    }
+
+    this.scaleWidth = function(hitCount) {
+        this.width = this.defaultWidth + hitCount * 3;
+    }
 
     this.move = function() {
         if (keyIsPressed) {
@@ -95,7 +110,7 @@ function Placeholder(initialX, initialY) {
         }
     };
     this.draw = function() {
-        fill(127);
+        fill(70);
         noStroke();
         rect(this.x, this.y, this.width, this.height);
     };
@@ -106,9 +121,10 @@ function Target(x, y) {
     this.y = y;
     this.width = 50;
     this.height = 20;
+    this.color = [int(random(255)), int(random(255)), int(random(255))]
 
     this.draw = function() {
-        fill(0,0,127);
+        fill(...this.color);
         stroke(0);
         strokeWeight(3);
         rect(this.x, this.y, this.width, this.height);
@@ -144,6 +160,7 @@ function Game() {
 
     this.checkGameOver = function() {
         if (this.targets.length == 0 || this.ball.y > height) {
+            noLoop();
             alert('Game Over');
             location.reload();
         }
@@ -151,9 +168,16 @@ function Game() {
 
     this.forward = function() {
         this.ball.move();
+
         // Check ball collision with placeholder
         if (this.ball.isCollidingWithRect(this.placeholder)) {
             this.ball.onCollideWithRect();
+            /*if (TARGET_HIT_COUNT == 0) {
+                this.placeholder.halfWidth();
+            } else if (TARGET_HIT_COUNT == 1) {
+                this.placeholder.restoreWidth();
+            }*/
+            TARGET_HIT_COUNT = 0;
         }
 
         // Check ball collision with targets
@@ -161,12 +185,14 @@ function Game() {
             let t = target;
             if (this.ball.isCollidingWithRect(t)) {
                 this.ball.onCollideWithRect();
+                TARGET_HIT_COUNT += 1;
+                /*if (TARGET_HIT_COUNT > 1)
+                this.placeholder.scaleWidth(TARGET_HIT_COUNT);
+                */
                 return false
             }
             return true;
         });
-
-        this.checkGameOver();
 
         // Check collision with walls
         // Left and Right wall
@@ -183,10 +209,14 @@ function Game() {
 
         this.placeholder.move();
         //this.targets.map(target => target.move());
+
+        this.checkGameOver();
+
     };
 
     this.draw = function() {
         noStroke();
+        background(239, 228, 210);
         this.ball.draw();
         this.placeholder.draw();
         this.targets.map(target => target.draw());
@@ -195,7 +225,6 @@ function Game() {
 }
 
 let game;
-
 function setup() {
     createCanvas(640, 480);
     RectEdge = {
@@ -210,7 +239,6 @@ function setup() {
  }
 
 function draw() {
-    background(255);
     stroke(0);
     noFill();
     rect(0,0, width, height);
