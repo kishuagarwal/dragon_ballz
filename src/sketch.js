@@ -1,58 +1,14 @@
-// collision detection
-// taken from https://github.com/bmoren/p5.collide2D/blob/master/p5.collide2d.js
-
-let RectEdge;
-
-let COLLISION_DETECTION_RECT_EDGE = null;
-
-let TARGET_HIT_COUNT = 0;
-
-function collideRectCircle(rx, ry, rw, rh, cx, cy, radius) {
-  //2d
-  // temporary variables to set edges for testing
-  var testX = cx;
-  var testY = cy;
-
-  // which edge is closest?
-  if (cx < rx){
-    testX = rx       // left edge
-    COLLISION_DETECTION_RECT_EDGE = RectEdge.LEFT;
-  }
-  else if (cx > rx+rw){
-    testX = rx+rw
-    COLLISION_DETECTION_RECT_EDGE = RectEdge.RIGHT;
-   }   // right edge
-
-  if (cy < ry){
-    testY = ry       // top edge
-    COLLISION_DETECTION_RECT_EDGE = RectEdge.TOP;
-  }
-  else if (cy > ry+rh){
-    testY = ry+rh
-    COLLISION_DETECTION_RECT_EDGE = RectEdge.BOTTOM;
-  }   // bottom edge
-
-  // // get distance from closest edges
-  var distance = this.dist(cx,cy,testX,testY)
-
-  // if the distance is less than the radius, collision!
-  if (distance <= radius) {
-    return true;
-  }
-  return false;
-};
-
-
 function Ball(initialX, initialY) {
     this.radius = 10;
     this.speed = 4;
-    this.velocity = createVector(1,1).setMag(this.speed);
+    this.velocityX = this.speed;
+    this.velocityY = this.speed;
     this.x = initialX;
     this.y = initialY;
 
     this.move = function() {
-        this.x += this.velocity.x;
-        this.y += this.velocity.y;
+        this.x += this.velocityX;
+        this.y += this.velocityY;
     };
 
     this.draw = function() {
@@ -61,23 +17,56 @@ function Ball(initialX, initialY) {
         ellipse(this.x, this.y, this.radius, this.radius);
     }
 
-    this.isCollidingWithRect = function(rect) {
-        return collideRectCircle(rect.x, rect.y, rect.width, rect.height, this.x, this.y, this.radius);
+    this.revertHorizontal = function() {
+        this.velocityX = -this.velocityX;
     }
 
-    this.onCollideWithRect = function() {
-        let collidingEdge = COLLISION_DETECTION_RECT_EDGE;
+    this.revertVertical = function() {
+        this.velocityY = -this.velocityY;
+    }
 
-        // Normalize the edge vector
-        let edge_vector = collidingEdge;
-        edge_vector.normalize();
+    // Checks collision of the ball with the given rectangle
+    // In case of collision, reflect the ball and adjust the velocity
+    // Returns true if collision did happen, else return false
+    this.checkCollisionWithRect = function(rect) {
+        // Coarse check
+        if (this.x + this.radius < rect.x || this.x - this.radius > rect.x + rect.width) {
+            return false;
+        }
 
-        // Find the reflection vector
-        let ref_vector = p5.Vector.sub(this.velocity, p5.Vector.mult(edge_vector, this.velocity.dot(edge_vector) * 2));
-        ref_vector.normalize();
+        if (this.y + this.radius < rect.y || this.y - this.radius > rect.y + rect.height) {
+            return false;
+        }
 
-        // Apply the new speeds
-        this.velocity = ref_vector.setMag(this.speed);
+        // LEFT EDGE
+        if (this.x < rect.x && this.x + this.radius > rect.x) {
+            this.revertHorizontal();
+            this.move();
+            return true;
+        }
+
+        // RIGHT EDGE
+        if (this.x > rect.x + rect.width && this.x - this.radius < rect.x + rect.width) {
+            this.revertHorizontal();
+            this.move();
+            return true;
+        }
+
+        // TOP EDGE
+        if (this.y < rect.y && this.y + this.radius > rect.y) {
+            this.revertVertical();
+            this.move();
+            return true;
+        }
+
+        // RIGHT EDGE
+        if (this.y > rect.y + rect.height && this.y - this.radius < rect.y + rect.height) {
+            this.revertVertical();
+            this.move();
+            return true;
+        }
+
+        return false;
     }
 }
 
@@ -116,11 +105,12 @@ function Placeholder(initialX, initialY) {
     };
 }
 
-function Target(x, y) {
+function Target(x, y, width, height) {
     this.x = x;
     this.y = y;
-    this.width = 50;
-    this.height = 20;
+    this.width = width;
+    this.height = height;
+    // Assign random color to the target
     this.color = [int(random(255)), int(random(255)), int(random(255))]
 
     this.draw = function() {
@@ -137,29 +127,46 @@ function Game() {
     this.targets = [];
 
     this.setup = function() {
-        this.ball = new Ball(0,0);
-        this.placeholder = new Placeholder(width/2, height-20);
+        this.addBall();
+        this.addPlaceholder();
         this.addTargets();
     };
+
+    this.addBall = function() {
+        // Set the ball in the uppermost left corner of the game
+        this.ball = new Ball(0,0);
+    };
+
+    this.addPlaceholder = function() {
+        // Set the placeholder in the bottom-middle of the game
+        this.placeholder = new Placeholder(width/2, height-20);
+    }
 
     this.addTargets = function() {
        let targetHeight = 20;
        let targetWidth = 50;
+       // Number of rows of targets
        let numTargetsRows = 5;
+       // Number of targets per row
        let numTargetsPerRow = 10;
+       // Y offset of the first row of targets
        let yOffset = 50;
+       // X offset of the first row of targets
        let xOffset = (width - numTargetsPerRow * targetWidth) / 2;
        for (let i = 0; i < numTargetsRows; i++) {
             let y = targetHeight * i + yOffset;
             for (let j = 0; j < numTargetsPerRow; j++) {
                 let x = j * targetWidth + xOffset;
-                this.targets.push(new Target(x, y));
+                this.targets.push(new Target(x, y, targetWidth, targetHeight));
             }
        }
     };
 
     this.checkGameOver = function() {
+        // If either all the targets have been destroyed or ball has 
+        // gone below the allowed region, then the game is over
         if (this.targets.length == 0 || this.ball.y > height) {
+            // Stop the game loop
             noLoop();
             alert('Game Over');
             location.reload();
@@ -170,26 +177,13 @@ function Game() {
         this.ball.move();
 
         // Check ball collision with placeholder
-        if (this.ball.isCollidingWithRect(this.placeholder)) {
-            this.ball.onCollideWithRect();
-            /*if (TARGET_HIT_COUNT == 0) {
-                this.placeholder.halfWidth();
-            } else if (TARGET_HIT_COUNT == 1) {
-                this.placeholder.restoreWidth();
-            }*/
-            TARGET_HIT_COUNT = 0;
-        }
+        this.ball.checkCollisionWithRect(this.placeholder);
 
         // Check ball collision with targets
         this.targets = this.targets.filter(target => {
             let t = target;
-            if (this.ball.isCollidingWithRect(t)) {
-                this.ball.onCollideWithRect();
-                TARGET_HIT_COUNT += 1;
-                /*if (TARGET_HIT_COUNT > 1)
-                this.placeholder.scaleWidth(TARGET_HIT_COUNT);
-                */
-                return false
+            if (this.ball.checkCollisionWithRect(t)) {
+                return false;
             }
             return true;
         });
@@ -197,19 +191,15 @@ function Game() {
         // Check collision with walls
         // Left and Right wall
         if (this.ball.x < 0 || this.ball.x > width) {
-            COLLISION_DETECTION_RECT_EDGE = RectEdge.LEFT;
-            this.ball.onCollideWithRect();
+            this.ball.revertHorizontal();
         }
 
         // Up wall
         if (this.ball.y < 0 ) {
-            COLLISION_DETECTION_RECT_EDGE = RectEdge.TOP;
-            this.ball.onCollideWithRect();
+            this.ball.revertVertical();
         }
 
         this.placeholder.move();
-        //this.targets.map(target => target.move());
-
         this.checkGameOver();
 
     };
@@ -221,19 +211,11 @@ function Game() {
         this.placeholder.draw();
         this.targets.map(target => target.draw());
     };
-
 }
 
 let game;
 function setup() {
-    createCanvas(640, 480);
-    RectEdge = {
-        LEFT: createVector(1,0),
-        RIGHT: createVector(1,0),
-        BOTTOM: createVector(0,1),
-        TOP: createVector(0,1),
-    };
-
+    createCanvas(1024, 640);
     game = new Game();
     game.setup();
  }
