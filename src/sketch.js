@@ -125,6 +125,8 @@ function Game() {
     this.ball = null;
     this.placeholder = null;
     this.targets = [];
+    this.score = 0;
+    this.gameOver = false;
 
     this.setup = function() {
         this.addBall();
@@ -168,8 +170,7 @@ function Game() {
         if (this.targets.length == 0 || this.ball.y > height) {
             // Stop the game loop
             noLoop();
-            alert('Game Over');
-            location.reload();
+            this.gameOver = true;
         }
     }
 
@@ -180,13 +181,11 @@ function Game() {
         this.ball.checkCollisionWithRect(this.placeholder);
 
         // Check ball collision with targets
-        this.targets = this.targets.filter(target => {
-            let t = target;
-            if (this.ball.checkCollisionWithRect(t)) {
-                return false;
-            }
-            return true;
-        });
+        const prevLength = this.targets.length;
+        this.targets = this.targets.filter(target => !this.ball.checkCollisionWithRect(target));
+        const newLength = this.targets.length;
+
+        this.score += (prevLength - newLength) * 2
 
         // Check collision with walls
         // Left and Right wall
@@ -206,11 +205,27 @@ function Game() {
 
     this.draw = function() {
         noStroke();
-        background(239, 228, 210);
+        //background(239, 228, 210);
+        if (this.gameOver) {
+            background(0, 150);
+            fill(255);
+            textSize(30);
+            text('Game Over', width/2, height/2);
+            return;
+        }
+        background(255, 192, 203);
+        this.showScore();
         this.ball.draw();
         this.placeholder.draw();
         this.targets.map(target => target.draw());
     };
+
+    this.showScore = function() {
+        // Show score in top right
+        fill(255);
+        textSize(24);
+        text(`Score: ${this.score}`, width - 150, 50)
+    }
 }
 
 let game;
